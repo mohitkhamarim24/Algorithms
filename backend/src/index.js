@@ -1,26 +1,36 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const app = express();
-const authMiddleware = require('./middleware/authMiddleware');
+import express from 'express';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import cors from 'cors';
+
+import authMiddleware from './middleware/authMiddleware.js';
+import problemRoutes from './routes/problem.js';
+import authRoutes from './routes/auth.js';
 
 dotenv.config();
 
-app.use(cors());
-app.use(express.json()); 
+const app = express();
 
-const authRoutes = require('./routes/auth');
+app.use(cors());
+app.use(express.json());
+
+// Auth routes
 app.use('/api/auth', authRoutes);
 
+// Protected route
 app.get('/api/protected', authMiddleware, (req, res) => {
   res.json({ message: `Hello user ${req.user.userId}, you're authenticated!` });
 });
 
-app.get('/' , (req,res) => {
-     res.send("System is running...")
-})
+// Problem routes
+app.use('/api/problems', problemRoutes);
 
+// Health check
+app.get('/', (req, res) => {
+  res.send("System is running...");
+});
+
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB');

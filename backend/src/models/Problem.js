@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const testCaseSchema = new mongoose.Schema({
   input: String,
@@ -8,9 +8,14 @@ const testCaseSchema = new mongoose.Schema({
 const problemSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Easy' },
+  difficulty: {
+    type: String,
+    enum: ['Easy', 'Medium', 'Hard'],
+    default: 'Easy'
+  },
   tags: [String],
   testCases: [testCaseSchema]
 });
 
-module.exports = mongoose.model('Problem', problemSchema);
+const Problem = mongoose.model('Problem', problemSchema);
+export default Problem;
