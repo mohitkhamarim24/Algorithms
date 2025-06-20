@@ -6,6 +6,7 @@ import cors from 'cors';
 import authMiddleware from './middleware/authMiddleware.js';
 import problemRoutes from './routes/problem.js';
 import authRoutes from './routes/auth.js';
+import submissionRoutes from './routes/submission.js';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.get('/api/protected', authMiddleware, (req, res) => {
 
 // Problem routes
 app.use('/api/problems', problemRoutes);
+app.use('/api/submissions', submissionRoutes);
 
 // Health check
 app.get('/', (req, res) => {
