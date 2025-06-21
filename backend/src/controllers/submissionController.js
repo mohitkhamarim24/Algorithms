@@ -1,74 +1,91 @@
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Problem from '../models/Problem.js';
 import Submission from '../models/Submission.js';
+import User from '../models/User.js';
 
-// Needed because we use ESModules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Judge logic
 export const submitSolution = async (req, res) => {
   try {
     const { problemId, code, language } = req.body;
     const userId = req.user.userId;
 
     const problem = await Problem.findById(problemId);
-    if (!problem) return res.status(404).json({ message: 'Problem not found' });
+    if (!problem) {
+      return res.status(404).json({ message: 'Problem not found' });
+    }
 
-    let verdict = 'Accepted';
-    let actualOutput = '';
-    const expectedOutput = problem.testCases.map(tc => tc.expectedOutput).join('\n');
-
-    // Write the code to a file
     const filename = `submission-${Date.now()}.${language === 'python' ? 'py' : 'js'}`;
     const filepath = path.join(__dirname, '..', 'temp', filename);
     fs.writeFileSync(filepath, code);
 
-    // Run code
-    const inputStr = problem.testCases.map(tc => tc.input).join('\n');
+    const expectedOutputs = [];
+    const actualOutputs = [];
+    let verdict = 'Accepted';
 
-    const runCommand = language === 'python'
-  ? `python ${filepath}` // 
-  : `node ${filepath}`;
+    for (const testCase of problem.testCases) {
+      const runCommand = language === 'python' ? 'python' : 'node';
+      const child = spawn(runCommand, [filepath]);
 
-    exec(runCommand, { input: inputStr, timeout: 5000 }, async (error, stdout, stderr) => {
-      if (error || stderr) {
-        verdict = 'Error';
-        actualOutput = stderr || error.message;
-      } else {
-        actualOutput = stdout.trim();
-        if (actualOutput !== expectedOutput.trim()) {
-          verdict = 'Wrong Answer';
-        }
-      }
+      let output = '';
+      let errorOutput = '';
 
-      // Save submission
-      const submission = new Submission({
-        user: userId,
-        problem: problemId,
-        code,
-        language,
-        verdict,
-        output: actualOutput,
-        expectedOutput
+      child.stdout.on('data', data => {
+        output += data.toString();
       });
 
-      await submission.save();
-      if (verdict === 'Accepted') {
-        await User.findByIdAndUpdate(userId, {
-          $addToSet: { solvedProblems: problemId }
-        });
-      }
-      fs.unlinkSync(filepath); // cleanup temp file
-
-      res.status(200).json({
-        verdict,
-        output: actualOutput,
-        expectedOutput
+      child.stderr.on('data', data => {
+        errorOutput += data.toString();
       });
+
+      // Write test case input
+      child.stdin.write(testCase.input);
+      child.stdin.end();
+
+      const exitCode = await new Promise(resolve => {
+        child.on('close', code => resolve(code));
+      });
+
+      const normalizedActual = output.replace(/\r\n/g, '\n').trim();
+      const normalizedExpected = testCase.expectedOutput.replace(/\r\n/g, '\n').trim();
+
+      expectedOutputs.push(normalizedExpected);
+      actualOutputs.push(normalizedActual);
+
+      if (exitCode !== 0 || errorOutput || normalizedActual !== normalizedExpected) {
+        verdict = 'Wrong Answer';
+        break; // stop on first failure (or remove this to run all test cases regardless)
+      }
+    }
+
+    // Save submission
+    const submission = new Submission({
+      user: userId,
+      problem: problemId,
+      code,
+      language,
+      verdict,
+      output: actualOutputs.join('\n'),
+      expectedOutput: expectedOutputs.join('\n')
+    });
+
+    await submission.save();
+    fs.unlinkSync(filepath);
+
+    if (verdict === 'Accepted') {
+      await User.findByIdAndUpdate(userId, {
+        $addToSet: { solvedProblems: problemId }
+      });
+    }
+
+    res.status(200).json({
+      verdict,
+      output: actualOutputs.join('\n'),
+      expectedOutput: expectedOutputs.join('\n')
     });
 
   } catch (err) {
