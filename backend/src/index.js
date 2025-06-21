@@ -27,6 +27,7 @@ app.get('/api/protected', authMiddleware, (req, res) => {
 app.use('/api/problems', problemRoutes);
 app.use('/api/submissions', submissionRoutes);
 
+
 // Health check
 app.get('/', (req, res) => {
   res.send("System is running...");
