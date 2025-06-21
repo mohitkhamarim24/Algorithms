@@ -3,7 +3,6 @@ import authMiddleware from '../middleware/authMiddleware.js';
 import { submitSolution } from '../controllers/submissionController.js';
 import { getUserSubmission } from '../controllers/submissionHistoryController.js';
 
-
 const router = express.Router();
 
 router.post('/', authMiddleware, submitSolution);

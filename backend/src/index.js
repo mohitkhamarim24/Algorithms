@@ -7,6 +7,7 @@ import authMiddleware from './middleware/authMiddleware.js';
 import problemRoutes from './routes/problem.js';
 import authRoutes from './routes/auth.js';
 import submissionRoutes from './routes/submission.js';
+import leaderboardRoutes from './routes/leaderboard.js';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.get('/api/protected', authMiddleware, (req, res) => {
 // Problem routes
 app.use('/api/problems', problemRoutes);
 app.use('/api/submissions', submissionRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 
 
 // Health check
