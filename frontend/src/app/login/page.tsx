@@ -1,16 +1,43 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+    const router = useRouter();
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log({ email, password });
-    // Integrate API login logic here
-  };
+       setError("");
+   
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Login failed");
+        return;
+      }
+
+      // Save token and user in localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      router.push("/dashboard");
+    } catch (err) {
+      setError("Something went wrong. Try again.");
+      console.error(err);
+    }
+  };
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-500 px-4">
       <form
@@ -18,7 +45,9 @@ export default function LoginPage() {
         className="bg-black text-white rounded-3xl shadow-2xl p-8 w-full max-w-md border border-gray-800"
       >
         <h2 className="text-3xl font-bold text-center mb-6">Login</h2>
-
+         {error && (
+          <p className="text-red-500 text-center mb-4">{error}</p>
+        )}
         <div className="mb-4">
           <label className="block text-sm text-gray-400 mb-1">Email</label>
           <input
